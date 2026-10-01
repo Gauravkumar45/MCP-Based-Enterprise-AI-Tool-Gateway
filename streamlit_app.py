@@ -55,6 +55,10 @@ if "chat_history" not in st.session_state:
 
 def login_user(username: str, password: str = "Password123!") -> bool:
     """Authenticate and store token in session state."""
+    username = username.strip()
+    if not username:
+        st.error("Please enter a username.")
+        return False
     status_code, data = api_request(
         "POST", "/auth/login", json_data={"username": username, "password": password}
     )
@@ -136,12 +140,18 @@ with st.sidebar:
     st.divider()
 
     # Custom Login
-    with st.expander("Custom Login"):
-        c_user = st.text_input("Username", key="c_user")
-        c_pass = st.text_input("Password", type="password", key="c_pass")
-        if st.button("Login"):
+    with st.expander("🔑 Manual / Custom Login"):
+        st.caption("Standard accounts (password: `Password123!` or `password`):")
+        st.markdown("""
+        - 📊 **analyst** *(Analytics & tool execution)*
+        - ⚡ **admin** *(Unrestricted system admin)*
+        - 👁️ **viewer** *(Read-only docs & telemetry)*
+        """)
+        c_user = st.text_input("Username", value="analyst", key="c_user")
+        c_pass = st.text_input("Password", value="Password123!", type="password", key="c_pass")
+        if st.button("Authenticate", use_container_width=True):
             if login_user(c_user, c_pass):
-                st.success("Authenticated!")
+                st.success(f"Authenticated as {c_user}!")
                 st.rerun()
 
 

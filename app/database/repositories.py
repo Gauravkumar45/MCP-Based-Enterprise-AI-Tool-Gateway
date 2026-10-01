@@ -2,7 +2,7 @@
 
 from collections.abc import Sequence
 
-from sqlalchemy import desc, or_, select
+from sqlalchemy import desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -38,7 +38,7 @@ class UserRepository:
         stmt = (
             select(User)
             .options(selectinload(User.roles).selectinload(Role.permissions))
-            .where(User.username == username)
+            .where(func.lower(User.username) == username.lower())
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()

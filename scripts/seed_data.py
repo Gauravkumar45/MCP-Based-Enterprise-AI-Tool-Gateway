@@ -1,7 +1,11 @@
 """Database seed script populating RBAC entities, business records, and knowledge base documents."""
 
 import asyncio
+import sys
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from sqlalchemy import select
 

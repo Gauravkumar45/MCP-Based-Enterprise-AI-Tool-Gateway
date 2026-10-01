@@ -487,12 +487,3 @@ The script demonstrates:
 1. **Stateful vs. Stateless Rate Limiting**: The sliding-window rate limiter utilizes Redis sorted sets for sub-millisecond coordination across horizontal replicas. In the event of a Redis outage, an automatic in-memory sliding window provides high availability.
 2. **SQL AST Parsing vs. Static Regex**: Static regex matching is notoriously bypassable via comments (`/**/`) or encoding tricks. By employing SQLGlot to parse the Abstract Syntax Tree, the gateway verifies the root AST node is strictly a `Select` and enforces bounds deterministically.
 3. **Read-Replica Routing**: In high-scale deployments, `DATABASE_READONLY_URL` should point to PostgreSQL read-replicas or AWS Aurora read-endpoints to offload analytics traffic from primary transactional databases.
-
----
-
-## 17. Senior Platform Engineer Resume Highlights
-
-- **Architected a centralized Model Context Protocol (MCP) Tool Gateway** enabling LangGraph AI agents to dynamically discover and securely execute enterprise tools across PostgreSQL, internal microservices, and knowledge repositories.
-- **Engineered a Zero-Trust security and authorization pipeline** utilizing JWT-based RBAC, Redis sliding-window rate limiting, and SQLGlot AST validation to prevent SQL injection, destructive DDL mutations, and unauthorized data access.
-- **Implemented an immutable audit ledger and telemetry framework** in PostgreSQL and Python contextvars, capturing SHA-256 parameter hashes, execution latencies, and error codes with automatic credential redaction.
-- **Developed a modular LangGraph agent and MCP client abstraction** with configurable LLM backends (OpenAI + deterministic fallback engine), achieving 100% reproducible test verification across 77 unit, integration, and security test cases.

@@ -1,13 +1,11 @@
 """Interactive Streamlit UI for the MCP-Based Enterprise AI Tool Gateway & Analytics Copilot."""
 
-import json
+import os
 from typing import Any
 
 import httpx
 import pandas as pd
 import streamlit as st
-
-import os
 
 GATEWAY_URL = os.getenv("GATEWAY_URL", "http://localhost:8080").rstrip("/")
 
@@ -57,7 +55,9 @@ if "chat_history" not in st.session_state:
 
 def login_user(username: str, password: str = "Password123!") -> bool:
     """Authenticate and store token in session state."""
-    status_code, data = api_request("POST", "/auth/login", json_data={"username": username, "password": password})
+    status_code, data = api_request(
+        "POST", "/auth/login", json_data={"username": username, "password": password}
+    )
     if status_code == 200:
         st.session_state.token = data["access_token"]
         st.session_state.user_info = data
@@ -92,15 +92,35 @@ with st.sidebar:
 
     col_r1, col_r2, col_r3 = st.columns(3)
     with col_r1:
-        if st.button("Analyst", use_container_width=True, type="primary" if st.session_state.user_info and "analyst" in st.session_state.user_info.get("roles", []) else "secondary"):
+        if st.button(
+            "Analyst",
+            use_container_width=True,
+            type="primary"
+            if st.session_state.user_info
+            and "analyst" in st.session_state.user_info.get("roles", [])
+            else "secondary",
+        ):
             login_user("analyst")
             st.rerun()
     with col_r2:
-        if st.button("Admin", use_container_width=True, type="primary" if st.session_state.user_info and "admin" in st.session_state.user_info.get("roles", []) else "secondary"):
+        if st.button(
+            "Admin",
+            use_container_width=True,
+            type="primary"
+            if st.session_state.user_info and "admin" in st.session_state.user_info.get("roles", [])
+            else "secondary",
+        ):
             login_user("admin")
             st.rerun()
     with col_r3:
-        if st.button("Viewer", use_container_width=True, type="primary" if st.session_state.user_info and "viewer" in st.session_state.user_info.get("roles", []) else "secondary"):
+        if st.button(
+            "Viewer",
+            use_container_width=True,
+            type="primary"
+            if st.session_state.user_info
+            and "viewer" in st.session_state.user_info.get("roles", [])
+            else "secondary",
+        ):
             login_user("viewer")
             st.rerun()
 
@@ -128,12 +148,14 @@ with st.sidebar:
 # -------------------------------------------------------------
 # Main Application Tabs
 # -------------------------------------------------------------
-tab_chat, tab_tools, tab_sql, tab_audit = st.tabs([
-    "💬 AI Analytics Copilot",
-    "🧰 MCP Tool Catalog",
-    "🛡️ SQL Safety Guard Sandbox",
-    "📜 Immutable Audit Ledger",
-])
+tab_chat, tab_tools, tab_sql, tab_audit = st.tabs(
+    [
+        "💬 AI Analytics Copilot",
+        "🧰 MCP Tool Catalog",
+        "🛡️ SQL Safety Guard Sandbox",
+        "📜 Immutable Audit Ledger",
+    ]
+)
 
 
 # =============================================================
@@ -162,12 +184,14 @@ with tab_chat:
         if st.button("💰 Calculate Revenue KPI"):
             selected_prompt = "Calculate the total revenue KPI for last month"
 
-    def render_execution_trace(plan: str | None, tools: list[dict[str, Any]] | None, results: list[dict[str, Any]] | None) -> None:
+    def render_execution_trace(
+        plan: str | None, tools: list[dict[str, Any]] | None, results: list[dict[str, Any]] | None
+    ) -> None:
         """Render the 8-step AI Execution Trace."""
         with st.expander("🔍 Agent Execution Trace (Full Pipeline)", expanded=True):
             st.markdown("""
             ```
-            User Query ──► Agent Planning ──► MCP Tool Discovery ──► Tool Selection 
+            User Query ──► Agent Planning ──► MCP Tool Discovery ──► Tool Selection
                              ▲                                           │
                              │                                           ▼
             Final Response ◄─┴─ Tool Result ◄─── Tool Execution ◄─── Authorization
@@ -181,7 +205,9 @@ with tab_chat:
                 st.json(tools or [])
             with col_t2:
                 st.markdown("**3. Backend Authorization & Execution Status:**")
-                st.success("✅ RBAC Verified: User holds required permission\n✅ SQL AST Verified: Strictly read-only\n✅ Rate Limit Quota: OK")
+                st.success(
+                    "✅ RBAC Verified: User holds required permission\n✅ SQL AST Verified: Strictly read-only\n✅ Rate Limit Quota: OK"
+                )
                 st.markdown("**4. Raw Structured MCP Results:**")
                 st.json(results or [])
 
@@ -190,7 +216,9 @@ with tab_chat:
         with st.chat_message("user"):
             st.write(item["query"])
         with st.chat_message("assistant"):
-            render_execution_trace(item.get("plan"), item.get("selected_tools"), item.get("tool_results"))
+            render_execution_trace(
+                item.get("plan"), item.get("selected_tools"), item.get("tool_results")
+            )
             st.markdown(item["final_response"])
 
     # Chat input
@@ -211,16 +239,20 @@ with tab_chat:
                 )
 
             if status_code == 200:
-                render_execution_trace(resp.get("plan"), resp.get("selected_tools"), resp.get("tool_results"))
+                render_execution_trace(
+                    resp.get("plan"), resp.get("selected_tools"), resp.get("tool_results")
+                )
                 st.markdown(resp["final_response"])
 
-                st.session_state.chat_history.append({
-                    "query": active_query,
-                    "plan": resp.get("plan"),
-                    "selected_tools": resp.get("selected_tools"),
-                    "tool_results": resp.get("tool_results"),
-                    "final_response": resp.get("final_response"),
-                })
+                st.session_state.chat_history.append(
+                    {
+                        "query": active_query,
+                        "plan": resp.get("plan"),
+                        "selected_tools": resp.get("selected_tools"),
+                        "tool_results": resp.get("tool_results"),
+                        "final_response": resp.get("final_response"),
+                    }
+                )
             else:
                 err_msg = resp.get("message", resp.get("detail", "Error executing agent"))
                 st.error(f"Execution Error: {err_msg}")
@@ -231,7 +263,9 @@ with tab_chat:
 # =============================================================
 with tab_tools:
     st.header("🧰 Discovered Enterprise MCP Tools")
-    st.markdown("Tools exposed through the Model Context Protocol based on your **active role permissions**.")
+    st.markdown(
+        "Tools exposed through the Model Context Protocol based on your **active role permissions**."
+    )
 
     t_code, tools_data = api_request("GET", "/tools", token=st.session_state.token)
     if t_code == 200 and tools_data:
@@ -263,7 +297,9 @@ with tab_tools:
 # =============================================================
 with tab_sql:
     st.header("🛡️ SQL Safety & AST Validation Sandbox")
-    st.markdown("Test the **SQLGlot AST parser** against malicious or destructive SQL queries in real time.")
+    st.markdown(
+        "Test the **SQLGlot AST parser** against malicious or destructive SQL queries in real time."
+    )
 
     col_s1, col_s2 = st.columns(2)
     with col_s1:
@@ -329,14 +365,28 @@ with tab_audit:
         if status_filter != "All":
             params["status"] = status_filter
 
-        a_code, a_data = api_request("GET", "/audit/logs", token=st.session_state.token, params=params)
+        a_code, a_data = api_request(
+            "GET", "/audit/logs", token=st.session_state.token, params=params
+        )
 
         if a_code == 200 and a_data.get("items"):
             items = a_data["items"]
             df = pd.DataFrame(items)
-            df = df[["timestamp", "tool_name", "user_id", "execution_status", "latency_ms", "request_id", "input_hash"]]
+            df = df[
+                [
+                    "timestamp",
+                    "tool_name",
+                    "user_id",
+                    "execution_status",
+                    "latency_ms",
+                    "request_id",
+                    "input_hash",
+                ]
+            ]
             st.dataframe(df, use_container_width=True, height=500)
         elif a_code == 403:
-            st.warning("🔒 Access Restricted: Current role lacks `audit.read` permission. Switch to the **Admin** role in the sidebar.")
+            st.warning(
+                "🔒 Access Restricted: Current role lacks `audit.read` permission. Switch to the **Admin** role in the sidebar."
+            )
         else:
             st.info("No audit logs found or gateway unreachable.")

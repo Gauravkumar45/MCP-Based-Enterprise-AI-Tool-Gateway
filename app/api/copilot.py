@@ -134,7 +134,7 @@ async def chat_with_agent_stream(
         t0 = time.perf_counter()
         agent = get_enterprise_agent()
 
-        yield f"data: {json.dumps({'event': 'planning', 'message': '🤖 Agent analyzing intent & discovering approved MCP tools...'})}\n\n"
+        yield f"data: {json.dumps({'event': 'planning', 'message': 'Analyzing intent and discovering approved MCP tools...'})}\n\n"
         await asyncio.sleep(0.05)
 
         result = await agent.run(
@@ -144,18 +144,17 @@ async def chat_with_agent_stream(
         )
         latency_ms = round((time.perf_counter() - t0) * 1000, 2)
 
-        # Notify tool execution
         selected = result.get("selected_tools", [])
         if selected:
             for t in selected:
                 t_name = t.get("name", "tool")
-                yield f"data: {json.dumps({'event': 'executing_tool', 'tool': t_name, 'message': f'🔧 Invoking {t_name} via MCP Gateway...'})}\n\n"
+                yield f"data: {json.dumps({'event': 'executing_tool', 'tool': t_name, 'message': f'Invoking {t_name} via MCP Gateway...'})}\n\n"
                 await asyncio.sleep(0.05)
                 yield f"data: {json.dumps({'event': 'tool_result', 'tool': t_name, 'status': 'SUCCESS'})}\n\n"
         else:
-            yield f"data: {json.dumps({'event': 'info', 'message': 'ℹ️ Direct conversational routing without backend tool calls.'})}\n\n"
+            yield f"data: {json.dumps({'event': 'info', 'message': 'Direct conversational routing without backend tool calls.'})}\n\n"
 
-        yield f"data: {json.dumps({'event': 'synthesizing', 'message': '📊 Synthesizing executive report...'})}\n\n"
+        yield f"data: {json.dumps({'event': 'synthesizing', 'message': 'Synthesizing response...'})}\n\n"
 
         # Record tokens
         input_tokens = estimate_tokens(request.query) + 320

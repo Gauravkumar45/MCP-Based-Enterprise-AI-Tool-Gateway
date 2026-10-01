@@ -1,4 +1,4 @@
-"""Modern Enterprise AI Platform & MCP Control Plane Dashboard."""
+"""Enterprise AI Platform & MCP Control Plane Dashboard."""
 
 import os
 from typing import Any
@@ -10,26 +10,20 @@ import streamlit as st
 GATEWAY_URL = os.getenv("GATEWAY_URL", "http://localhost:8080").rstrip("/")
 
 st.set_page_config(
-    page_title="Enterprise AI Gateway & Control Plane",
-    page_icon="🛡️",
+    page_title="Enterprise AI Gateway",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# -------------------------------------------------------------
-# Custom Enterprise CSS Theme
-# -------------------------------------------------------------
 st.markdown(
     """
 <style>
-    /* Global Typography & Palette */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
     html, body, [class*="css"] {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
 
-    /* Sleek KPI Cards */
     .kpi-container {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -39,7 +33,7 @@ st.markdown(
     .kpi-card {
         background: linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.9) 100%);
         border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 12px;
+        border-radius: 10px;
         padding: 1.25rem 1rem;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         transition: transform 0.2s ease, border-color 0.2s ease;
@@ -68,7 +62,6 @@ st.markdown(
         margin-top: 0.35rem;
     }
 
-    /* Modern Badges */
     .badge {
         display: inline-block;
         padding: 0.2rem 0.55rem;
@@ -83,25 +76,23 @@ st.markdown(
     .badge-info { background: rgba(56, 189, 248, 0.15); color: #38BDF8; border: 1px solid rgba(56, 189, 248, 0.3); }
     .badge-warning { background: rgba(234, 179, 8, 0.15); color: #FACC15; border: 1px solid rgba(234, 179, 8, 0.3); }
 
-    /* Compact Tool Call Box in Chat */
     .tool-call-banner {
         background: rgba(15, 23, 42, 0.75);
         border: 1px solid rgba(56, 189, 248, 0.25);
         border-left: 4px solid #38BDF8;
-        border-radius: 8px;
+        border-radius: 6px;
         padding: 0.75rem 1rem;
         margin: 0.5rem 0 1rem 0;
         font-family: 'JetBrains Mono', monospace;
         font-size: 0.85rem;
     }
 
-    /* Empty States */
     .empty-state {
         text-align: center;
         padding: 2.5rem 1rem;
         background: rgba(15, 23, 42, 0.4);
         border: 1px dashed rgba(255, 255, 255, 0.12);
-        border-radius: 12px;
+        border-radius: 10px;
         color: #94A3B8;
         margin: 1rem 0;
     }
@@ -136,9 +127,6 @@ def api_request(
         return 500, {"error": "CONNECTION_FAILED", "message": str(e)}
 
 
-# -------------------------------------------------------------
-# Session State Initialization
-# -------------------------------------------------------------
 if "token" not in st.session_state:
     st.session_state.token = None
 if "user_info" not in st.session_state:
@@ -164,37 +152,30 @@ def login_user(username: str, password: str = "Password123!") -> bool:
     return False
 
 
-# Auto-login as Analyst by default if unauthenticated
 if not st.session_state.token:
     login_user("analyst")
 
 
-# -------------------------------------------------------------
-# Sidebar Navigation & Role Control
-# -------------------------------------------------------------
 with st.sidebar:
-    st.markdown("### 🛡️ **Enterprise AI Control Plane**")
-    st.caption("Model Context Protocol (MCP) Gateway")
+    st.markdown("### Enterprise AI Gateway")
+    st.caption("Operations & Control Plane")
 
-    # Gateway Health Indicator
     h_code, _ = api_request("GET", "/health")
     if h_code == 200:
         st.markdown(
-            '<span class="badge badge-success">● Gateway Online (Port 8080)</span>',
+            '<span class="badge badge-success">Gateway Online (Port 8080)</span>',
             unsafe_allow_html=True,
         )
     else:
         st.markdown(
-            '<span class="badge badge-danger">● Gateway Unreachable</span>',
+            '<span class="badge badge-danger">Gateway Unreachable</span>',
             unsafe_allow_html=True,
         )
 
     st.divider()
 
-    # Active User Profile & Role Switcher
     st.markdown("**Active Persona**")
     roles = st.session_state.user_info.get("roles", []) if st.session_state.user_info else []
-    active_role = roles[0] if roles else "analyst"
 
     col_r1, col_r2, col_r3 = st.columns(3)
     with col_r1:
@@ -226,8 +207,7 @@ with st.sidebar:
         u = st.session_state.user_info
         st.caption(f"Authenticated as **`{u.get('username')}`**")
 
-    # Manual Login Expander
-    with st.expander("🔑 Switch Custom Account"):
+    with st.expander("Switch Account"):
         c_user = st.text_input("Username", value="analyst", key="c_user")
         c_pass = st.text_input("Password", value="Password123!", type="password", key="c_pass")
         if st.button("Authenticate", use_container_width=True):
@@ -237,16 +217,14 @@ with st.sidebar:
 
     st.divider()
 
-    # Role-Based Navigation Menu
-    nav_options = ["🏠 Dashboard", "💬 AI Assistant", "🛠 MCP Tools", "📊 Analytics"]
+    nav_options = ["Dashboard", "AI Assistant", "MCP Tools", "Analytics"]
 
-    # Role specific views
     if "admin" in roles:
-        nav_options.extend(["📜 Tool Executions", "🔐 Audit Ledger"])
+        nav_options.extend(["Tool Executions", "Audit Ledger"])
     elif "analyst" in roles:
-        nav_options.append("📜 Tool Executions")
+        nav_options.append("Tool Executions")
 
-    nav_options.extend(["👤 My Usage", "⚙️ Architecture & Settings"])
+    nav_options.extend(["My Usage", "Architecture & Settings"])
 
     selected_nav = st.radio(
         "Navigation",
@@ -255,9 +233,6 @@ with st.sidebar:
     )
 
 
-# -------------------------------------------------------------
-# HELPER: Render KPI Card HTML
-# -------------------------------------------------------------
 def render_kpi(label: str, value: Any, sub: str = "") -> str:
     return f"""
     <div class="kpi-card">
@@ -268,23 +243,19 @@ def render_kpi(label: str, value: Any, sub: str = "") -> str:
     """
 
 
-# =============================================================
-# VIEW 1: DASHBOARD HOME
-# =============================================================
-if selected_nav == "🏠 Dashboard":
-    st.title("Enterprise AI Platform Operations")
-    st.markdown("Real-time telemetry, tool invocation health, and LLM token economics.")
+# Dashboard
+if selected_nav == "Dashboard":
+    st.title("Platform Operations")
+    st.caption("Real-time telemetry, tool invocation health, and token economics.")
 
-    # Fetch live dashboard metrics from backend
     d_code, d_data = api_request("GET", "/analytics/dashboard", token=st.session_state.token)
 
     if d_code == 200:
-        # Top KPI Ribbon
         kpi_cols = st.columns(6)
         with kpi_cols[0]:
             st.markdown(
                 render_kpi(
-                    "Total Tool Calls", f"{d_data['total_tool_calls']:,}", "All time invocations"
+                    "Total Tool Calls", f"{d_data['total_tool_calls']:,}", "All-time invocations"
                 ),
                 unsafe_allow_html=True,
             )
@@ -296,13 +267,13 @@ if selected_nav == "🏠 Dashboard":
         with kpi_cols[2]:
             st.markdown(
                 render_kpi(
-                    "Failed / Denied", f"{d_data['failed_tool_calls']:,}", "Blocked by RBAC / AST"
+                    "Failed / Denied", f"{d_data['failed_tool_calls']:,}", "Blocked by policy / AST"
                 ),
                 unsafe_allow_html=True,
             )
         with kpi_cols[3]:
             st.markdown(
-                render_kpi("Active MCP Tools", d_data["active_tools"], "Discovered & validated"),
+                render_kpi("Active MCP Tools", d_data["active_tools"], "Discovered & verified"),
                 unsafe_allow_html=True,
             )
         with kpi_cols[4]:
@@ -324,11 +295,10 @@ if selected_nav == "🏠 Dashboard":
 
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # Operational Charts Section
         row1_c1, row1_c2 = st.columns(2)
 
         with row1_c1:
-            st.subheader("📊 Tool Invocations by Name")
+            st.subheader("Tool Invocations by Name")
             tool_counts = d_data.get("tool_usage_counts", {})
             if tool_counts:
                 df_tools = pd.DataFrame(
@@ -341,7 +311,7 @@ if selected_nav == "🏠 Dashboard":
                 )
 
         with row1_c2:
-            st.subheader("⚡ Execution Latency by Tool (ms)")
+            st.subheader("Execution Latency by Tool (ms)")
             tool_lat = d_data.get("latency_by_tool", {})
             if tool_lat:
                 df_lat = pd.DataFrame(
@@ -354,7 +324,7 @@ if selected_nav == "🏠 Dashboard":
         row2_c1, row2_c2 = st.columns(2)
 
         with row2_c1:
-            st.subheader("📈 Execution Status Breakdown")
+            st.subheader("Execution Status Breakdown")
             status_map = d_data.get("status_breakdown", {})
             if status_map:
                 df_status = pd.DataFrame(
@@ -365,7 +335,7 @@ if selected_nav == "🏠 Dashboard":
                 st.info("No status distribution data available.")
 
         with row2_c2:
-            st.subheader("🪙 Daily Token Consumption Trend")
+            st.subheader("Daily Token Consumption Trend")
             token_trend = d_data.get("token_usage_trend", [])
             if token_trend:
                 df_tokens = pd.DataFrame(token_trend)
@@ -379,31 +349,27 @@ if selected_nav == "🏠 Dashboard":
         st.error(f"Failed to load operational metrics: {d_data.get('message', 'Unreachable')}")
 
 
-# =============================================================
-# VIEW 2: AI ASSISTANT (CHAT COPILOT)
-# =============================================================
-elif selected_nav == "💬 AI Assistant":
+# AI Assistant
+elif selected_nav == "AI Assistant":
     st.title("Enterprise AI Copilot")
-    st.markdown(
-        "Chat with the LangGraph agent. Capabilities are discovered dynamically via **MCP** "
-        "and guarded by **AST SQL validation**, **Zero-Trust RBAC**, and **immutable audit logging**."
+    st.caption(
+        "Capabilities are discovered dynamically via MCP with AST validation, RBAC, and audit logging."
     )
 
-    # Prompt Suggestions
     st.caption("Quick Business Prompts:")
     col_p1, col_p2, col_p3, col_p4 = st.columns(4)
     selected_prompt: str | None = None
     with col_p1:
-        if st.button("📊 Top 5 Customers by Revenue", use_container_width=True):
+        if st.button("Top 5 Customers by Revenue", use_container_width=True):
             selected_prompt = "What were the top 5 customers by revenue last month?"
     with col_p2:
-        if st.button("🧾 Lookup Invoice CUST-1001", use_container_width=True):
+        if st.button("Lookup Invoice CUST-1001", use_container_width=True):
             selected_prompt = "Find the latest invoice for customer CUST-1001."
     with col_p3:
-        if st.button("📜 Rate Limit Security Policy", use_container_width=True):
+        if st.button("Rate Limit Security Policy", use_container_width=True):
             selected_prompt = "What is our enterprise security policy regarding rate limits?"
     with col_p4:
-        if st.button("💰 Calculate Revenue KPI", use_container_width=True):
+        if st.button("Calculate Revenue KPI", use_container_width=True):
             selected_prompt = "Calculate the total revenue KPI for last month"
 
     def render_execution_trace(
@@ -414,8 +380,7 @@ elif selected_nav == "💬 AI Assistant":
         tokens_used: int | None = None,
         cost: float | None = None,
     ) -> None:
-        """Render the 8-step AI Execution Trace panel."""
-        with st.expander("🔍 Inspect Full Agent Execution Trace", expanded=False):
+        with st.expander("Agent Execution Trace", expanded=False):
             st.markdown(
                 """
             ```
@@ -430,39 +395,38 @@ elif selected_nav == "💬 AI Assistant":
             has_tools = bool(tools and len(tools) > 0)
             with col_t1:
                 st.markdown("**1. Agent Planning & Intent Analysis:**")
-                st.info(plan or "Direct conversational response — no enterprise tool required.")
+                st.info(plan or "Direct conversational response - no enterprise tool required.")
                 st.markdown("**2. MCP Discovered & Selected Tool(s):**")
                 if has_tools:
                     st.json(tools)
                 else:
                     st.caption(
-                        "ℹ️ No enterprise tools required. Query routed to conversational synthesis."
+                        "No enterprise tools required. Query routed to conversational synthesis."
                     )
             with col_t2:
                 st.markdown("**3. Backend Authorization & Execution Status:**")
                 if has_tools:
                     if error:
-                        st.error(f"❌ Authorization / Execution Blocked:\n{error}")
+                        st.error(f"Authorization / Execution Blocked:\n{error}")
                     else:
                         st.success(
-                            "✅ RBAC Verified: User holds required permission\n"
-                            "✅ SQL AST Verified: Strictly read-only\n"
-                            "✅ Rate Limit Quota: OK"
+                            "RBAC Verified: User holds required permission\n"
+                            "SQL AST Verified: Strictly read-only\n"
+                            "Rate Limit Quota: OK"
                         )
                 else:
-                    st.caption("ℹ️ Tool execution bypassed — direct conversational response.")
+                    st.caption("Tool execution bypassed - direct conversational response.")
                 st.markdown("**4. Raw Structured MCP Results:**")
                 if has_tools:
                     st.json(results or [])
                 else:
-                    st.caption("ℹ️ No tool results — answer synthesized directly.")
+                    st.caption("No tool results - answer synthesized directly.")
 
             if tokens_used is not None:
                 st.caption(
-                    f"🪙 **Tokens Consumed**: `{tokens_used:,}` | **Estimated Cost**: `${cost or 0.0:.6f}`"
+                    f"Tokens Consumed: `{tokens_used:,}` | Estimated Cost: `${cost or 0.0:.6f}`"
                 )
 
-    # Display chat history
     for item in st.session_state.chat_history:
         with st.chat_message("user"):
             st.write(item["query"])
@@ -472,8 +436,8 @@ elif selected_nav == "💬 AI Assistant":
                     st.markdown(
                         f"""
                         <div class="tool-call-banner">
-                            🔧 <b>Tool Invoked</b>: <code>{t.get("name")}</code><br>
-                            ✓ Authorization Verified &nbsp;|&nbsp; ✓ Schema Validated &nbsp;|&nbsp; ✓ Audited
+                            <b>Tool Invoked</b>: <code>{t.get("name")}</code><br>
+                            Authorization Verified &nbsp;|&nbsp; Schema Validated &nbsp;|&nbsp; Audited
                         </div>
                         """,
                         unsafe_allow_html=True,
@@ -488,7 +452,6 @@ elif selected_nav == "💬 AI Assistant":
             )
             st.markdown(item["final_response"])
 
-    # Chat Input
     user_input = st.chat_input("Ask a business question or request tool execution...")
     active_query = selected_prompt or user_input
 
@@ -500,7 +463,7 @@ elif selected_nav == "💬 AI Assistant":
             status_placeholder = st.empty()
             with status_placeholder.container():
                 st.markdown(
-                    '<span class="badge badge-info">● Planning & discovering MCP tools...</span>',
+                    '<span class="badge badge-info">Planning & discovering MCP tools...</span>',
                     unsafe_allow_html=True,
                 )
 
@@ -518,8 +481,8 @@ elif selected_nav == "💬 AI Assistant":
                         st.markdown(
                             f"""
                             <div class="tool-call-banner">
-                                🔧 <b>Tool Invoked</b>: <code>{t.get("name")}</code><br>
-                                ✓ Authorization Verified &nbsp;|&nbsp; ✓ AST Safety Checked &nbsp;|&nbsp; ✓ Executed in {resp.get("latency_ms", 0)}ms
+                                <b>Tool Invoked</b>: <code>{t.get("name")}</code><br>
+                                Authorization Verified &nbsp;|&nbsp; AST Safety Checked &nbsp;|&nbsp; Executed in {resp.get("latency_ms", 0)}ms
                             </div>
                             """,
                             unsafe_allow_html=True,
@@ -549,21 +512,16 @@ elif selected_nav == "💬 AI Assistant":
                 )
             elif status_code == 429:
                 err_detail = resp.get("detail", "Rate or token limit exceeded.")
-                st.error(f"🚨 Quota Restricted: {err_detail}")
+                st.error(f"Quota Restricted: {err_detail}")
             else:
                 err_msg = resp.get("message", resp.get("detail", "Error executing agent"))
                 st.error(f"Execution Error: {err_msg}")
 
 
-# =============================================================
-# VIEW 3: MCP TOOL EXPLORER
-# =============================================================
-elif selected_nav == "🛠 MCP Tools":
-    st.title("MCP Tool Catalog & Telemetry")
-    st.markdown(
-        "Inspect all approved enterprise tools registered on the Model Context Protocol (MCP) server. "
-        "Metrics reflect actual database execution records."
-    )
+# MCP Tools
+elif selected_nav == "MCP Tools":
+    st.title("MCP Tool Catalog")
+    st.caption("Inspect approved enterprise tools registered on the Model Context Protocol server.")
 
     t_code, t_stats = api_request("GET", "/analytics/tool-stats", token=st.session_state.token)
 
@@ -604,21 +562,17 @@ elif selected_nav == "🛠 MCP Tools":
         st.error("Failed to load MCP tool statistics.")
 
 
-# =============================================================
-# VIEW 4: ANALYTICS & OBSERVABILITY
-# =============================================================
-elif selected_nav == "📊 Analytics":
-    st.title("System Observability & AI Telemetry")
-    st.markdown(
+# Analytics
+elif selected_nav == "Analytics":
+    st.title("System Observability")
+    st.caption(
         "Detailed breakdown of LLM token costs, latency trends, and enterprise tool execution."
     )
 
     d_code, d_data = api_request("GET", "/analytics/dashboard", token=st.session_state.token)
 
     if d_code == 200:
-        tab_ai, tab_system = st.tabs(
-            ["🪙 AI Model & Token Analytics", "⚙️ Tool Latency & Reliability"]
-        )
+        tab_ai, tab_system = st.tabs(["Model & Token Analytics", "Tool Latency & Reliability"])
 
         with tab_ai:
             c1, c2, c3 = st.columns(3)
@@ -665,12 +619,10 @@ elif selected_nav == "📊 Analytics":
         st.error("Failed to load analytics data.")
 
 
-# =============================================================
-# VIEW 5: TOOL EXECUTIONS (FILTERABLE LEDGER)
-# =============================================================
-elif selected_nav == "📜 Tool Executions":
+# Tool Executions
+elif selected_nav == "Tool Executions":
     st.title("Tool Execution Ledger")
-    st.markdown("Inspect every tool execution dispatched through the MCP Gateway.")
+    st.caption("Inspect every tool execution dispatched through the MCP Gateway.")
 
     col_f1, col_f2, col_f3 = st.columns(3)
     with col_f1:
@@ -721,12 +673,10 @@ elif selected_nav == "📜 Tool Executions":
         st.error("Failed to load tool executions.")
 
 
-# =============================================================
-# VIEW 6: AUDIT LEDGER (ADMIN ONLY)
-# =============================================================
-elif selected_nav == "🔐 Audit Ledger":
-    st.title("Immutable Security Audit Ledger")
-    st.markdown(
+# Audit Ledger
+elif selected_nav == "Audit Ledger":
+    st.title("Security Audit Ledger")
+    st.caption(
         "Cryptographically hashed parameter audit logs for governance, zero-trust tracking, and forensics."
     )
 
@@ -756,18 +706,16 @@ elif selected_nav == "🔐 Audit Ledger":
             st.info("Audit ledger is empty.")
     elif a_code == 403:
         st.warning(
-            "🔒 Access Restricted: The audit ledger is only accessible to users with the `admin` role."
+            "Access Restricted: The audit ledger is only accessible to users with the admin role."
         )
     else:
         st.error("Failed to load audit records.")
 
 
-# =============================================================
-# VIEW 7: MY USAGE & TOKEN QUOTA
-# =============================================================
-elif selected_nav == "👤 My Usage":
-    st.title("My AI Usage & Token Quota")
-    st.markdown("Track your personal daily token limits, request volume, and estimated LLM costs.")
+# My Usage
+elif selected_nav == "My Usage":
+    st.title("My Usage & Token Quota")
+    st.caption("Track personal daily token limits, request volume, and estimated LLM costs.")
 
     u_code, u_data = api_request("GET", "/analytics/user-usage", token=st.session_state.token)
 
@@ -812,28 +760,24 @@ elif selected_nav == "👤 My Usage":
 
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # Quota Progress Bar & Warning Banner
         st.subheader("Daily Token Quota Status")
         progress_val = min(1.0, max(0.0, u_data["percent_used"] / 100.0))
         st.progress(progress_val)
 
         if u_data.get("is_exceeded"):
             st.error(
-                f"🚨 **Daily Quota Exceeded!** You have consumed {u_data['today_tokens']:,} of your "
+                f"Daily Quota Exceeded: You have consumed {u_data['today_tokens']:,} of your "
                 f"{u_data['daily_limit']:,} daily token allowance. Additional requests are restricted."
             )
         elif u_data.get("is_warning"):
             st.warning(
-                f"⚠️ **Approaching Quota**: You have used {u_data['percent_used']}% of your daily token limit."
+                f"Approaching Quota: You have used {u_data['percent_used']}% of your daily token limit."
             )
         else:
-            st.success(
-                f"✅ Quota healthy: {u_data['tokens_remaining']:,} tokens available for today."
-            )
+            st.success(f"Quota healthy: {u_data['tokens_remaining']:,} tokens available for today.")
 
         st.divider()
 
-        # Model Breakdown and Daily History
         col_m1, col_m2 = st.columns(2)
         with col_m1:
             st.subheader("Token Usage by Model")
@@ -860,15 +804,13 @@ elif selected_nav == "👤 My Usage":
         st.error("Failed to load user token quota.")
 
 
-# =============================================================
-# VIEW 8: ARCHITECTURE & SETTINGS
-# =============================================================
-elif selected_nav == "⚙️ Architecture & Settings":
-    st.title("System Architecture & Gateway Configuration")
-    st.markdown("Runtime parameters, security guardrails, and model pricing tables.")
+# Architecture & Settings
+elif selected_nav == "Architecture & Settings":
+    st.title("System Architecture & Settings")
+    st.caption("Runtime parameters, security guardrails, and model pricing tables.")
 
     tab_arch, tab_pricing, tab_claims = st.tabs(
-        ["🏗️ Architecture & Flow", "💲 Configured Model Pricing", "🔐 Session Claims"]
+        ["Architecture & Flow", "Model Pricing", "Session Claims"]
     )
 
     with tab_arch:

@@ -82,17 +82,17 @@ class EnterpriseMockLLM(BaseChatModel):
             )
             if is_actual_greeting:
                 greeting_text = (
-                    "👋 **Hello! Welcome to the Enterprise AI Tool Gateway.**\n\n"
-                    "I am your **Enterprise AI Analytics Copilot**, securely connected to backend systems via the Model Context Protocol (MCP).\n\n"
-                    "Here are the approved enterprise capabilities available to you:\n\n"
-                    "- 📊 **Database Analytics (`query_database`)**: Query PostgreSQL customer, revenue, and transaction tables with automatic AST read-only validation.\n"
-                    "- 👥 **Customer Details (`get_customer`)**: Retrieve customer profile, tier, and lifetime value.\n"
-                    "- 🧾 **Invoices & Orders (`get_invoice`, `get_order`)**: Inspect billing statuses, line items, and fulfillment tracking.\n"
-                    "- 📜 **Policy & Knowledge Search (`search_documents`)**: Semantic search across internal compliance, SLA, and security policies.\n"
-                    "- 📈 **KPI Calculation (`calculate_kpi`)**: Compute MRR, churn rate, average order value (AOV), and customer growth.\n"
-                    "- ⚙️ **System Telemetry (`get_system_status`)**: Check PostgreSQL, Redis, and Gateway operational health.\n\n"
-                    "**Zero-Trust Security**: All queries are evaluated against your user role permissions, protected by AST SQL safety parsing, and logged to an immutable audit ledger.\n\n"
-                    "💡 *Try asking:*\n"
+                    "**Enterprise AI Analytics Copilot**\n\n"
+                    "Connected to enterprise systems via the Model Context Protocol (MCP) Gateway.\n\n"
+                    "Approved enterprise capabilities available:\n\n"
+                    "- **Database Analytics (`query_database`)**: Query PostgreSQL customer, revenue, and transaction tables with automatic AST read-only validation.\n"
+                    "- **Customer Details (`get_customer`)**: Retrieve customer profile, tier, and lifetime value.\n"
+                    "- **Invoices & Orders (`get_invoice`, `get_order`)**: Inspect billing statuses, line items, and fulfillment tracking.\n"
+                    "- **Policy & Knowledge Search (`search_documents`)**: Semantic search across internal compliance, SLA, and security policies.\n"
+                    "- **KPI Calculation (`calculate_kpi`)**: Compute MRR, churn rate, average order value (AOV), and customer growth.\n"
+                    "- **System Telemetry (`get_system_status`)**: Check PostgreSQL, Redis, and Gateway operational health.\n\n"
+                    "**Security Controls**: All queries are evaluated against your user role permissions, protected by AST SQL safety parsing, and logged to an immutable audit ledger.\n\n"
+                    "*Suggested queries:*\n"
                     "- *'What were the top 5 customers by revenue last month?'*\n"
                     "- *'Find the latest invoice for customer CUST-1001.'*\n"
                     "- *'What is our enterprise security policy regarding rate limits?'*"
@@ -105,13 +105,13 @@ class EnterpriseMockLLM(BaseChatModel):
             fallback_text = (
                 f'I reviewed your question: **"{user_question_display}"**.\n\n'
                 "I was unable to match this request to an approved enterprise tool or database query. "
-                "As your Enterprise AI Analytics Copilot, I can help you with:\n\n"
-                "- 📊 **Database Analytics**: e.g., *'Show top 5 customers by revenue'*, *'Query customers table'*\n"
-                "- 🧾 **Invoices & Orders**: e.g., *'Find latest invoice for CUST-1001'*, *'Check order ORD-9001'*\n"
-                "- 📜 **Policies & Security**: e.g., *'What is our enterprise security policy regarding rate limits?'*\n"
-                "- 📈 **KPI Metrics**: e.g., *'Calculate total revenue KPI'* or *'What is our churn rate?'*\n"
-                "- ⚙️ **System Status**: e.g., *'Check system status'*\n\n"
-                "Please try rephrasing your question using one of the enterprise domains above!"
+                "Available enterprise capabilities include:\n\n"
+                "- **Database Analytics**: e.g., 'Show top 5 customers by revenue', 'Query customers table'\n"
+                "- **Invoices & Orders**: e.g., 'Find latest invoice for CUST-1001', 'Check order ORD-9001'\n"
+                "- **Policies & Security**: e.g., 'What is our enterprise security policy regarding rate limits?'\n"
+                "- **KPI Metrics**: e.g., 'Calculate total revenue KPI', 'What is our churn rate?'\n"
+                "- **System Status**: e.g., 'Check system status'\n\n"
+                "Please rephrase your question using one of the enterprise domains above."
             )
             return ChatResult(
                 generations=[ChatGeneration(message=AIMessage(content=fallback_text))]

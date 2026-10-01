@@ -114,6 +114,13 @@ jobs:
           pip install uv
           uv pip install --system .[dev]
 
+      - name: Run Database Migrations & Seed
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/mcp_gateway
+        run: |
+          alembic upgrade head
+          python scripts/seed_data.py
+
       - name: Run Integration Tests
         env:
           DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/mcp_gateway

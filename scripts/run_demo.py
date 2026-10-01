@@ -12,7 +12,6 @@ from app.core.security import create_access_token
 from app.database.models import AuditLog
 from app.database.session import session_scope
 from app.mcp.client import EnterpriseMCPClient
-from app.mcp.server import get_mcp_server
 
 
 def print_banner(title: str) -> None:
@@ -70,7 +69,9 @@ async def run_enterprise_demo() -> None:
 
     res2 = await agent.run(query=query_2, auth_token=analyst_token)
     print(f"\n[✓] Discovered & Selected Tool: {res2['selected_tools'][0]['name']}")
-    print(f" - Tool Results Found: {len(res2['tool_results'][0]['result'].get('results', []))} documents")
+    print(
+        f" - Tool Results Found: {len(res2['tool_results'][0]['result'].get('results', []))} documents"
+    )
     print("\n[Executive Agent Output]:\n")
     print(res2["final_response"])
 
@@ -116,7 +117,9 @@ async def run_enterprise_demo() -> None:
         print("-" * 95)
         for log in logs:
             user = log.user_id or "anonymous"
-            print(f"{log.request_id:<38} {log.tool_name:<18} {user:<18} {log.execution_status:<10} {log.latency_ms:.2f}ms")
+            print(
+                f"{log.request_id:<38} {log.tool_name:<18} {user:<18} {log.execution_status:<10} {log.latency_ms:.2f}ms"
+            )
 
     print_banner("Demonstration Complete: All Systems Verified")
 

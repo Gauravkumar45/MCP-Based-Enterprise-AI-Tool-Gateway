@@ -13,7 +13,8 @@ dependencies = [
     "uvicorn>=0.30.0",
     "pydantic>=2.7.0",
     "pydantic-settings>=2.2.0",
-    "sqlalchemy>=2.0.30",
+    "sqlalchemy[asyncio]>=2.0.30",
+    "greenlet>=3.0.0",
     "asyncpg>=0.29.0",
     "aiosqlite>=0.20.0",
     "redis>=5.0.0",
@@ -48,6 +49,7 @@ exclude = ["alembic*", "tests*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+pythonpath = ["."]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]

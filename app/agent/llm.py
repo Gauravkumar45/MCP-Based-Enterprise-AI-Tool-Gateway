@@ -32,10 +32,16 @@ class EnterpriseMockLLM(BaseChatModel):
         **kwargs: Any,
     ) -> ChatResult:
         last_message = messages[-1].content if messages else ""
-        text_content = str(last_message).lower()
-
-        # Check if this generation is for synthesis
         last_str = str(last_message)
+        text_content = last_str.lower()
+
+        # Extract actual user query from prompt if wrapped in agent prompt
+        raw_query = text_content
+        match_uq = re.search(r"User Query:\s*(.+?)(?:\n|$)", last_str, re.IGNORECASE)
+        if match_uq:
+            raw_query = match_uq.group(1).strip().lower()
+
+        # Check if this generation is for synthesis with tool results
         if "TOOL_RESULTS:" in last_str or "tool_results" in text_content:
             try:
                 # Extract and format table
@@ -58,20 +64,23 @@ class EnterpriseMockLLM(BaseChatModel):
 
         # Check if this generation is for conversational synthesis (no tools called)
         if "Enterprise AI Analytics Copilot" in last_str and "TOOL_RESULTS:" not in last_str:
-            if any(
-                g in text_content
+            is_actual_greeting = any(
+                re.search(rf"\b{g}\b", raw_query)
                 for g in [
                     "hello",
                     "hi",
                     "hey",
-                    "greeting",
+                    "greetings",
                     "good morning",
                     "good afternoon",
-                    "help",
+                    "good evening",
                     "who are you",
                     "what can you do",
+                    "help",
+                    "menu",
                 ]
-            ):
+            )
+            if is_actual_greeting:
                 greeting_text = (
                     "👋 **Hello! Welcome to the Enterprise AI Tool Gateway.**\n\n"
                     "I am your **Enterprise AI Analytics Copilot**, securely connected to backend systems via the Model Context Protocol (MCP).\n\n"
@@ -91,18 +100,26 @@ class EnterpriseMockLLM(BaseChatModel):
                 return ChatResult(
                     generations=[ChatGeneration(message=AIMessage(content=greeting_text))]
                 )
+
+            user_question_display = match_uq.group(1).strip() if match_uq else raw_query
             fallback_text = (
-                "I am your Enterprise AI Analytics Copilot. I reviewed your query, but no enterprise tool is required or matched for this request.\n\n"
-                "I specialize in enterprise data operations: database analytics, customer lookup, invoice management, internal policy search, and KPI calculations.\n\n"
-                "Please let me know how I can assist with enterprise data or analytics!"
+                f'I reviewed your question: **"{user_question_display}"**.\n\n'
+                "I was unable to match this request to an approved enterprise tool or database query. "
+                "As your Enterprise AI Analytics Copilot, I can help you with:\n\n"
+                "- 📊 **Database Analytics**: e.g., *'Show top 5 customers by revenue'*, *'Query customers table'*\n"
+                "- 🧾 **Invoices & Orders**: e.g., *'Find latest invoice for CUST-1001'*, *'Check order ORD-9001'*\n"
+                "- 📜 **Policies & Security**: e.g., *'What is our enterprise security policy regarding rate limits?'*\n"
+                "- 📈 **KPI Metrics**: e.g., *'Calculate total revenue KPI'* or *'What is our churn rate?'*\n"
+                "- ⚙️ **System Status**: e.g., *'Check system status'*\n\n"
+                "Please try rephrasing your question using one of the enterprise domains above!"
             )
             return ChatResult(
                 generations=[ChatGeneration(message=AIMessage(content=fallback_text))]
             )
 
-        # Check if query is a greeting or general capability question
+        # 3. Check if query is a greeting or general capability question in planner
         is_greeting = any(
-            re.search(rf"\b{g}\b", text_content)
+            re.search(rf"\b{g}\b", raw_query)
             for g in [
                 "hello",
                 "hi",
@@ -114,6 +131,7 @@ class EnterpriseMockLLM(BaseChatModel):
                 "who are you",
                 "what can you do",
                 "help",
+                "menu",
             ]
         )
         if is_greeting:
@@ -128,59 +146,156 @@ class EnterpriseMockLLM(BaseChatModel):
                 ]
             )
 
-        # Plan & Tool selection heuristics for realistic queries
+        # 4. Robust Intent Parsing & Tool Selection
         selected_tool: str | None = None
         tool_args: dict[str, Any] = {}
 
-        if any(
-            term in text_content
-            for term in [
+        # Raw SQL query detection
+        sql_match = re.search(r"\b(select\s+.+?\s+from\s+.+?)(?:;|$)", raw_query, re.IGNORECASE)
+        if sql_match:
+            selected_tool = "query_database"
+            raw_sql = sql_match.group(1).strip()
+            if "limit" not in raw_sql.lower():
+                raw_sql += " LIMIT 10"
+            tool_args = {"query": raw_sql}
+
+        # Customer & Revenue database queries
+        elif any(
+            k in raw_query
+            for k in [
+                "top 5 customer",
+                "top customer",
+                "top 10 customer",
                 "top 5 customers",
                 "top customers",
                 "highest revenue",
                 "customer revenue",
                 "customers by revenue",
-                "database tables",
+                "best customer",
+                "most valuable",
+                "lifetime value",
+                "ltv",
             ]
         ):
             selected_tool = "query_database"
             tool_args = {
                 "query": "SELECT name, lifetime_value FROM customers ORDER BY lifetime_value DESC LIMIT 5"
             }
-        elif "customer" in text_content and ("cust-" in text_content or "get" in text_content):
-            match = re.search(r"cust-\d+", text_content, re.IGNORECASE)
-            cid = match.group(0).upper() if match else "CUST-1001"
+
+        elif any(
+            k in raw_query
+            for k in [
+                "customers",
+                "customer list",
+                "all customers",
+                "show customers",
+                "list customers",
+                "customer database",
+                "database tables",
+                "database",
+            ]
+        ):
+            match_cid = re.search(r"cust-\d+", raw_query, re.IGNORECASE)
+            if match_cid:
+                selected_tool = "get_customer"
+                tool_args = {"customer_id": match_cid.group(0).upper()}
+            else:
+                selected_tool = "query_database"
+                tool_args = {
+                    "query": "SELECT id, name, email, tier, lifetime_value FROM customers ORDER BY lifetime_value DESC LIMIT 10"
+                }
+
+        elif any(k in raw_query for k in ["customer", "client", "account"]) and any(
+            k in raw_query
+            for k in ["detail", "get", "find", "lookup", "who is", "profile", "cust-"]
+        ):
+            match_cid = re.search(r"cust-\d+", raw_query, re.IGNORECASE)
+            cid = match_cid.group(0).upper() if match_cid else "CUST-1001"
             selected_tool = "get_customer"
             tool_args = {"customer_id": cid}
-        elif "invoice" in text_content:
-            match = re.search(r"inv-\d{4}-\d+", text_content, re.IGNORECASE)
-            inv_id = match.group(0).upper() if match else "INV-2024-001"
+
+        # Invoice inquiries -> get_invoice
+        elif any(k in raw_query for k in ["invoice", "invoices", "bill", "billing", "inv-"]):
+            match_inv = re.search(r"inv-\d{4}-\d+", raw_query, re.IGNORECASE)
+            inv_id = match_inv.group(0).upper() if match_inv else "INV-2024-001"
             selected_tool = "get_invoice"
             tool_args = {"invoice_id": inv_id}
-        elif "order" in text_content and ("ord-" in text_content or "tracking" in text_content):
-            match = re.search(r"ord-\d+", text_content, re.IGNORECASE)
-            oid = match.group(0).upper() if match else "ORD-9001"
+
+        # Order inquiries -> get_order
+        elif any(
+            k in raw_query
+            for k in ["order", "orders", "ord-", "tracking", "shipment", "fulfillment"]
+        ):
+            match_ord = re.search(r"ord-\d+", raw_query, re.IGNORECASE)
+            oid = match_ord.group(0).upper() if match_ord else "ORD-9001"
             selected_tool = "get_order"
             tool_args = {"order_id": oid}
+
+        # KPI inquiries -> calculate_kpi
         elif any(
-            k in text_content for k in ["kpi", "mrr", "revenue metric", "average order value"]
+            k in raw_query
+            for k in [
+                "kpi",
+                "mrr",
+                "revenue metric",
+                "average order",
+                "aov",
+                "churn",
+                "active customer",
+                "metric",
+                "metrics",
+                "calculate revenue",
+            ]
         ):
             metric = "revenue"
-            if "aov" in text_content or "average order" in text_content:
+            if "aov" in raw_query or "average order" in raw_query:
                 metric = "aov"
-            elif "churn" in text_content:
+            elif "churn" in raw_query:
                 metric = "churn_rate"
-            elif "active customers" in text_content:
+            elif "active" in raw_query:
                 metric = "active_customers"
             selected_tool = "calculate_kpi"
             tool_args = {"metric_name": metric, "period": "last_month"}
+
+        # Document & Policy search -> search_documents
         elif any(
-            k in text_content
-            for k in ["policy", "document", "sla", "runbook", "search", "security"]
+            k in raw_query
+            for k in [
+                "policy",
+                "policies",
+                "document",
+                "documents",
+                "sla",
+                "runbook",
+                "search",
+                "security",
+                "rate limit",
+                "rate limits",
+                "reimbursement",
+                "expense",
+                "terms",
+                "rules",
+                "compliance",
+                "wiki",
+            ]
         ):
             selected_tool = "search_documents"
-            tool_args = {"query": str(last_message), "top_k": 3}
-        elif "system status" in text_content or "health" in text_content:
+            tool_args = {"query": str(raw_query), "top_k": 3}
+
+        # System health & status -> get_system_status
+        elif any(
+            k in raw_query
+            for k in [
+                "system",
+                "status",
+                "health",
+                "uptime",
+                "telemetry",
+                "diagnostics",
+                "ping",
+                "gateway",
+            ]
+        ):
             selected_tool = "get_system_status"
             tool_args = {}
 

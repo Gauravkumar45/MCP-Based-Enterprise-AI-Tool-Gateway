@@ -1,9 +1,11 @@
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-env/
+
+# Packaging / Distribution
 build/
 develop-eggs/
 dist/
@@ -20,25 +22,50 @@ wheels/
 .installed.cfg
 *.egg
 
-.env
-.venv
+# Virtual environments
+.venv/
 venv/
 ENV/
+env/
 
+# Environment files & secrets
+.env
+.env.*
+.env.local
+.env.development
+.env.production
+!.env.example
+
+# Testing, type-checking, and coverage
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 .coverage
 htmlcov/
+.tox/
+.nox/
+.cache/
 
+# IDE, editors, and tool configs
 .idea/
 .vscode/
+.cursor/
+.history/
+.streamlit/
+.gemini/
+.system_generated/
 *.swp
 *.swo
 
+# Databases & local data
 *.db
 *.sqlite
 *.sqlite3
-
 data/
 scratch/
+
+# Ignore all hidden directories (folders starting with .)
+.*/
+!.git/
+!.github/
+!.github/**

@@ -10,6 +10,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.api.analytics import router as analytics_router
 from app.api.audit import router as audit_router
 from app.api.auth import router as auth_router
 from app.api.copilot import router as copilot_router
@@ -145,6 +146,7 @@ def create_app() -> FastAPI:
     app.include_router(tools_router)
     app.include_router(audit_router)
     app.include_router(copilot_router)
+    app.include_router(analytics_router)
 
     return app
 

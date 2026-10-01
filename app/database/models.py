@@ -210,3 +210,31 @@ class Order(Base, TimestampMixin):
     tracking_number: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
     customer: Mapped["Customer"] = relationship("Customer", back_populates="orders")
+
+
+class LLMUsage(Base):
+    """Immutable record of LLM token consumption, latency, and estimated cost."""
+
+    __tablename__ = "llm_usage"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    request_id: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    user_id: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True)
+    agent_id: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True)
+    model: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    input_tokens: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    output_tokens: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    total_tokens: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    estimated_cost: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    latency_ms: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        index=True,
+        nullable=False,
+    )
+
+    __table_args__ = (
+        Index("ix_llm_usage_user_created", "user_id", "created_at"),
+        Index("ix_llm_usage_model_created", "model", "created_at"),
+    )

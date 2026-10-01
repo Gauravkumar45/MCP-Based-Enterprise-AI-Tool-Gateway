@@ -56,13 +56,92 @@ class EnterpriseMockLLM(BaseChatModel):
             except Exception:
                 pass
 
+        # Check if this generation is for conversational synthesis (no tools called)
+        if "Enterprise AI Analytics Copilot" in last_str and "TOOL_RESULTS:" not in last_str:
+            if any(
+                g in text_content
+                for g in [
+                    "hello",
+                    "hi",
+                    "hey",
+                    "greeting",
+                    "good morning",
+                    "good afternoon",
+                    "help",
+                    "who are you",
+                    "what can you do",
+                ]
+            ):
+                greeting_text = (
+                    "👋 **Hello! Welcome to the Enterprise AI Tool Gateway.**\n\n"
+                    "I am your **Enterprise AI Analytics Copilot**, securely connected to backend systems via the Model Context Protocol (MCP).\n\n"
+                    "Here are the approved enterprise capabilities available to you:\n\n"
+                    "- 📊 **Database Analytics (`query_database`)**: Query PostgreSQL customer, revenue, and transaction tables with automatic AST read-only validation.\n"
+                    "- 👥 **Customer Details (`get_customer`)**: Retrieve customer profile, tier, and lifetime value.\n"
+                    "- 🧾 **Invoices & Orders (`get_invoice`, `get_order`)**: Inspect billing statuses, line items, and fulfillment tracking.\n"
+                    "- 📜 **Policy & Knowledge Search (`search_documents`)**: Semantic search across internal compliance, SLA, and security policies.\n"
+                    "- 📈 **KPI Calculation (`calculate_kpi`)**: Compute MRR, churn rate, average order value (AOV), and customer growth.\n"
+                    "- ⚙️ **System Telemetry (`get_system_status`)**: Check PostgreSQL, Redis, and Gateway operational health.\n\n"
+                    "**Zero-Trust Security**: All queries are evaluated against your user role permissions, protected by AST SQL safety parsing, and logged to an immutable audit ledger.\n\n"
+                    "💡 *Try asking:*\n"
+                    "- *'What were the top 5 customers by revenue last month?'*\n"
+                    "- *'Find the latest invoice for customer CUST-1001.'*\n"
+                    "- *'What is our enterprise security policy regarding rate limits?'*"
+                )
+                return ChatResult(
+                    generations=[ChatGeneration(message=AIMessage(content=greeting_text))]
+                )
+            fallback_text = (
+                "I am your Enterprise AI Analytics Copilot. I reviewed your query, but no enterprise tool is required or matched for this request.\n\n"
+                "I specialize in enterprise data operations: database analytics, customer lookup, invoice management, internal policy search, and KPI calculations.\n\n"
+                "Please let me know how I can assist with enterprise data or analytics!"
+            )
+            return ChatResult(
+                generations=[ChatGeneration(message=AIMessage(content=fallback_text))]
+            )
+
+        # Check if query is a greeting or general capability question
+        is_greeting = any(
+            re.search(rf"\b{g}\b", text_content)
+            for g in [
+                "hello",
+                "hi",
+                "hey",
+                "greetings",
+                "good morning",
+                "good afternoon",
+                "good evening",
+                "who are you",
+                "what can you do",
+                "help",
+            ]
+        )
+        if is_greeting:
+            plan = "User greeted or requested general capabilities. Provide a welcoming introduction to the Enterprise AI Copilot and summarize available tools without invoking backend tools."
+            greeting_payload: dict[str, Any] = {
+                "plan": plan,
+                "tool_calls": [],
+            }
+            return ChatResult(
+                generations=[
+                    ChatGeneration(message=AIMessage(content=json.dumps(greeting_payload)))
+                ]
+            )
+
         # Plan & Tool selection heuristics for realistic queries
         selected_tool: str | None = None
         tool_args: dict[str, Any] = {}
 
         if any(
             term in text_content
-            for term in ["top 5 customers", "top customers", "highest revenue", "customer revenue"]
+            for term in [
+                "top 5 customers",
+                "top customers",
+                "highest revenue",
+                "customer revenue",
+                "customers by revenue",
+                "database tables",
+            ]
         ):
             selected_tool = "query_database"
             tool_args = {
@@ -107,23 +186,20 @@ class EnterpriseMockLLM(BaseChatModel):
 
         if selected_tool:
             plan = f"Plan: Identify intent and call tool '{selected_tool}' with parameters: {json.dumps(tool_args)}"
-            response_payload = {
+            tool_payload: dict[str, Any] = {
                 "plan": plan,
                 "tool_calls": [{"name": selected_tool, "arguments": tool_args}],
             }
             return ChatResult(
-                generations=[
-                    ChatGeneration(message=AIMessage(content=json.dumps(response_payload)))
-                ]
+                generations=[ChatGeneration(message=AIMessage(content=json.dumps(tool_payload)))]
             )
 
-        # Fallback direct response
+        # Fallback direct response formatted as valid JSON plan
+        fallback_plan = "Direct conversational response — no enterprise tool required or matched for this request."
         return ChatResult(
             generations=[
                 ChatGeneration(
-                    message=AIMessage(
-                        content="I reviewed your request, but no enterprise tool is required or matched for this question."
-                    )
+                    message=AIMessage(content=json.dumps({"plan": fallback_plan, "tool_calls": []}))
                 )
             ]
         )

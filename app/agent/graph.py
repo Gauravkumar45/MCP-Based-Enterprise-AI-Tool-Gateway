@@ -154,10 +154,16 @@ async def synthesizer_node(state: AgentState) -> dict[str, Any]:
         response = await llm.ainvoke([HumanMessage(content=summary_prompt)])
         final_answer = str(response.content)
     else:
-        final_answer = (
-            state.get("plan")
-            or "I could not find an appropriate enterprise tool to fulfill this request."
+        conversational_prompt = (
+            "You are an Enterprise AI Analytics Copilot powered by a secure Model Context Protocol (MCP) Tool Gateway.\n"
+            f"User Query: {user_query}\n"
+            f"Planner Analysis: {state.get('plan')}\n\n"
+            "Respond politely and professionally as an Enterprise AI Copilot. "
+            "If the user is greeting or asking for help, introduce yourself and explain what you can do (database queries, customer data, invoices, policy document search, and KPI calculations). "
+            "Invite them to ask an analytical or business question."
         )
+        response = await llm.ainvoke([HumanMessage(content=conversational_prompt)])
+        final_answer = str(response.content)
 
     return {
         "final_response": final_answer,

@@ -185,7 +185,10 @@ with tab_chat:
             selected_prompt = "Calculate the total revenue KPI for last month"
 
     def render_execution_trace(
-        plan: str | None, tools: list[dict[str, Any]] | None, results: list[dict[str, Any]] | None
+        plan: str | None,
+        tools: list[dict[str, Any]] | None,
+        results: list[dict[str, Any]] | None,
+        error: str | None = None,
     ) -> None:
         """Render the 8-step AI Execution Trace."""
         with st.expander("🔍 Agent Execution Trace (Full Pipeline)", expanded=True):
@@ -198,18 +201,33 @@ with tab_chat:
             ```
             """)
             col_t1, col_t2 = st.columns(2)
+            has_tools = bool(tools and len(tools) > 0)
             with col_t1:
                 st.markdown("**1. Agent Planning & Intent Analysis:**")
-                st.info(plan or "Direct synthesis without tool invocation required.")
+                st.info(plan or "Direct conversational response — no enterprise tool required.")
                 st.markdown("**2. MCP Discovered & Selected Tool(s):**")
-                st.json(tools or [])
+                if has_tools:
+                    st.json(tools)
+                else:
+                    st.caption(
+                        "ℹ️ No enterprise tools required. Query routed to conversational synthesis."
+                    )
             with col_t2:
                 st.markdown("**3. Backend Authorization & Execution Status:**")
-                st.success(
-                    "✅ RBAC Verified: User holds required permission\n✅ SQL AST Verified: Strictly read-only\n✅ Rate Limit Quota: OK"
-                )
+                if has_tools:
+                    if error:
+                        st.error(f"❌ Authorization / Execution Blocked:\n{error}")
+                    else:
+                        st.success(
+                            "✅ RBAC Verified: User holds required permission\n✅ SQL AST Verified: Strictly read-only\n✅ Rate Limit Quota: OK"
+                        )
+                else:
+                    st.caption("ℹ️ Tool execution bypassed — direct conversational response.")
                 st.markdown("**4. Raw Structured MCP Results:**")
-                st.json(results or [])
+                if has_tools:
+                    st.json(results or [])
+                else:
+                    st.caption("ℹ️ No tool results — answer synthesized directly.")
 
     # Display chat history
     for item in st.session_state.chat_history:
@@ -217,7 +235,10 @@ with tab_chat:
             st.write(item["query"])
         with st.chat_message("assistant"):
             render_execution_trace(
-                item.get("plan"), item.get("selected_tools"), item.get("tool_results")
+                item.get("plan"),
+                item.get("selected_tools"),
+                item.get("tool_results"),
+                item.get("execution_error"),
             )
             st.markdown(item["final_response"])
 
@@ -240,7 +261,10 @@ with tab_chat:
 
             if status_code == 200:
                 render_execution_trace(
-                    resp.get("plan"), resp.get("selected_tools"), resp.get("tool_results")
+                    resp.get("plan"),
+                    resp.get("selected_tools"),
+                    resp.get("tool_results"),
+                    resp.get("execution_error"),
                 )
                 st.markdown(resp["final_response"])
 
@@ -250,6 +274,7 @@ with tab_chat:
                         "plan": resp.get("plan"),
                         "selected_tools": resp.get("selected_tools"),
                         "tool_results": resp.get("tool_results"),
+                        "execution_error": resp.get("execution_error"),
                         "final_response": resp.get("final_response"),
                     }
                 )

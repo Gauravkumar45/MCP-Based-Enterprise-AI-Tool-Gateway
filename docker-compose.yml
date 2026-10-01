@@ -33,7 +33,7 @@ services:
       retries: 5
     restart: unless-stopped
 
-  api:
+  fastapi:
     build:
       context: .
       dockerfile: Dockerfile
@@ -64,6 +64,26 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
+    restart: unless-stopped
+    networks:
+      default:
+        aliases:
+          - mcp-gateway
+          - api
+
+  streamlit:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mcp_gateway_streamlit
+    command: ["streamlit", "run", "streamlit_app.py", "--server.port", "8501", "--server.headless", "true", "--server.address", "0.0.0.0"]
+    depends_on:
+      fastapi:
+        condition: service_healthy
+    environment:
+      GATEWAY_URL: "http://fastapi:8000"
+    ports:
+      - "${STREAMLIT_PORT:-8501}:8501"
     restart: unless-stopped
 
 volumes:

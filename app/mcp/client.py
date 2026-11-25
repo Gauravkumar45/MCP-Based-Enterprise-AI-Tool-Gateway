@@ -6,10 +6,10 @@ from typing import Any, cast
 
 import httpx
 
+from app.auth.jwt import authenticate_token
 from app.auth.models import UserContext
 from app.core.errors import GatewayException
 from app.core.logging import logger
-from app.core.security import decode_access_token
 from app.mcp.server import (
     EnterpriseMCPServer,
     current_agent_id_ctx,
@@ -38,17 +38,10 @@ class EnterpriseMCPClient:
         self.base_url = base_url
         self._cached_user_context: UserContext | None = None
 
-    def _get_user_context(self) -> UserContext:
-        """Decode and cache user context from bearer token."""
+    async def _get_user_context(self) -> UserContext:
+        """Validate the bearer token (signature, expiry, revocation) and cache the context."""
         if self._cached_user_context is None:
-            payload = decode_access_token(self.token)
-            self._cached_user_context = UserContext(
-                user_id=str(payload.get("sub", "")),
-                username=str(payload.get("username", "")),
-                roles=list(payload.get("roles", [])),
-                permissions=list(payload.get("permissions", [])),
-                token=self.token,
-            )
+            self._cached_user_context = await authenticate_token(self.token)
         return self._cached_user_context
 
     async def list_tools(self) -> list[dict[str, Any]]:
@@ -56,7 +49,7 @@ class EnterpriseMCPClient:
 
         Returns only tools authorized for the client's current credentials.
         """
-        user_ctx = self._get_user_context()
+        user_ctx = await self._get_user_context()
         metadata_list = self.server.registry.list_tools(user_context=user_ctx)
         return [
             {
@@ -76,7 +69,7 @@ class EnterpriseMCPClient:
 
         Propagates user identity, enforces RBAC, rate-limits, validates, and logs execution.
         """
-        user_ctx = self._get_user_context()
+        user_ctx = await self._get_user_context()
 
         # Set ambient context variables for in-process MCP bridge
         token_ctx = current_mcp_user_ctx.set(user_ctx)

@@ -3,7 +3,10 @@
 from functools import lru_cache
 from typing import Literal
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+DEFAULT_JWT_SECRET = "super-secret-jwt-key-change-me-in-production-min-32-chars"
 
 
 class Settings(BaseSettings):
@@ -34,9 +37,24 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379/0"
 
     # JWT Authentication
-    JWT_SECRET: str = "super-secret-jwt-key-change-me-in-production-min-32-chars"
+    JWT_SECRET: str = DEFAULT_JWT_SECRET
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    JWT_ISSUER: str = "mcp-enterprise-tool-gateway"
+    JWT_AUDIENCE: str = "mcp-enterprise-tool-gateway"
+
+    # Authentication hardening
+    # Demo shortcuts (username aliases like "bob" and relaxed demo passwords) are for local
+    # demos only. They are rejected at startup when APP_ENV=production.
+    AUTH_DEMO_SHORTCUTS: bool = False
+    LOGIN_MAX_FAILED_ATTEMPTS: int = 5
+    LOGIN_LOCKOUT_WINDOW_SECONDS: int = 300
+
+    # HTTP security
+    CORS_ALLOWED_ORIGINS: list[str] = Field(
+        default_factory=lambda: ["http://localhost:8501", "http://localhost:3000"]
+    )
+    SECURITY_HEADERS_ENABLED: bool = True
 
     # Rate Limiting
     RATE_LIMIT_REQUESTS: int = 10
@@ -54,6 +72,29 @@ class Settings(BaseSettings):
     DEFAULT_TOOL_TIMEOUT_SECONDS: int = 10
     MAX_TOOL_TIMEOUT_SECONDS: int = 60
     MAX_QUERY_LIMIT: int = 1000
+
+    def production_config_errors(self) -> list[str]:
+        """Return a list of insecure settings that must not be used in production."""
+        errors: list[str] = []
+        if self.APP_ENV != "production":
+            return errors
+        if self.JWT_SECRET == DEFAULT_JWT_SECRET or len(self.JWT_SECRET) < 32:
+            errors.append("JWT_SECRET must be overridden with a random value of at least 32 chars")
+        if self.JWT_ALGORITHM.lower() == "none":
+            errors.append("JWT_ALGORITHM must not be 'none'")
+        if self.AUTH_DEMO_SHORTCUTS:
+            errors.append("AUTH_DEMO_SHORTCUTS must be disabled in production")
+        if "*" in self.CORS_ALLOWED_ORIGINS:
+            errors.append("CORS_ALLOWED_ORIGINS must list explicit origins, not '*'")
+        if self.DEBUG:
+            errors.append("DEBUG must be disabled in production")
+        return errors
+
+    def validate_for_environment(self) -> None:
+        """Fail fast when the configuration is unsafe for the current environment."""
+        errors = self.production_config_errors()
+        if errors:
+            raise RuntimeError("Insecure production configuration: " + "; ".join(errors))
 
 
 @lru_cache

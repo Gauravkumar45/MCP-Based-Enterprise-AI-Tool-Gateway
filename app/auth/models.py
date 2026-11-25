@@ -10,7 +10,9 @@ class UserContext(BaseModel):
     username: str
     roles: list[str] = Field(default_factory=list)
     permissions: list[str] = Field(default_factory=list)
-    token: str | None = None
+    token: str | None = Field(default=None, exclude=True, repr=False)
+    token_id: str | None = Field(default=None, exclude=True, repr=False)
+    token_expires_at: int | None = Field(default=None, exclude=True, repr=False)
 
     def has_permission(self, permission: str) -> bool:
         """Check if user holds the specified permission."""

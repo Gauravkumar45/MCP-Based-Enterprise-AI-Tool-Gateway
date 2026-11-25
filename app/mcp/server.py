@@ -7,11 +7,11 @@ from typing import Any
 
 from mcp.server.mcpserver import Context, MCPServer
 
+from app.auth.jwt import authenticate_token
 from app.auth.models import UserContext
 from app.core.config import get_settings
 from app.core.errors import AuthenticationError, GatewayException
 from app.core.logging import logger, request_id_ctx, user_id_ctx
-from app.core.security import decode_access_token
 from app.database.session import session_scope
 from app.mcp.registry import ToolRegistry, create_default_registry
 from app.tools.base import BaseEnterpriseTool
@@ -25,7 +25,7 @@ current_agent_id_ctx: contextvars.ContextVar[str | None] = contextvars.ContextVa
 )
 
 
-def extract_user_context_from_mcp(ctx: Context | None = None) -> UserContext:
+async def extract_user_context_from_mcp(ctx: Context | None = None) -> UserContext:
     """Extract authenticated UserContext from MCP context headers or ambient contextvar."""
     # 1. Ambient contextvar (from agent or request scope)
     ambient_user = current_mcp_user_ctx.get()
@@ -36,15 +36,7 @@ def extract_user_context_from_mcp(ctx: Context | None = None) -> UserContext:
     if ctx and hasattr(ctx, "headers") and ctx.headers:
         auth_header = ctx.headers.get("authorization") or ctx.headers.get("Authorization")
         if auth_header and auth_header.lower().startswith("bearer "):
-            token = auth_header[7:].strip()
-            payload = decode_access_token(token)
-            return UserContext(
-                user_id=str(payload.get("sub", "")),
-                username=str(payload.get("username", "")),
-                roles=list(payload.get("roles", [])),
-                permissions=list(payload.get("permissions", [])),
-                token=token,
-            )
+            return await authenticate_token(auth_header[7:].strip())
 
     raise AuthenticationError(
         message="Authentication required: No valid Bearer token provided in MCP request",
@@ -78,7 +70,7 @@ class EnterpriseMCPServer:
 
             try:
                 # 1. Extract user context
-                user_context = extract_user_context_from_mcp(ctx)
+                user_context = await extract_user_context_from_mcp(ctx)
                 user_id_ctx.set(user_context.user_id)
                 agent_id = current_agent_id_ctx.get()
 

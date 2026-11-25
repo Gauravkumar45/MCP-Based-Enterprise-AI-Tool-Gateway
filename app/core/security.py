@@ -17,17 +17,29 @@ def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
 
 
+DEMO_SEED_PASSWORD = "Password123!"
+_DEMO_PASSWORD_VARIANTS = frozenset({"password", "password123", "password123!", "admin"})
+
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a plaintext password against a bcrypt hash."""
+    """Verify a plaintext password against a bcrypt hash (constant-time, no shortcuts)."""
     try:
-        if bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8")):
-            return True
-        # For seamless developer & demo experience, accept common demo variants for default seed password
-        if plain_password.lower() in ("password", "password123", "password123!", "admin"):
-            return bcrypt.checkpw(b"Password123!", hashed_password.encode("utf-8"))
-        return False
+        return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
     except Exception:
         return False
+
+
+def verify_password_with_demo_shortcuts(plain_password: str, hashed_password: str) -> bool:
+    """Verify a password, also accepting common variants of the demo seed password.
+
+    Only call this when ``AUTH_DEMO_SHORTCUTS`` is enabled (local demos). Production startup
+    refuses that setting, so the relaxed check can never run against real accounts.
+    """
+    if verify_password(plain_password, hashed_password):
+        return True
+    if plain_password.lower() in _DEMO_PASSWORD_VARIANTS:
+        return verify_password(DEMO_SEED_PASSWORD, hashed_password)
+    return False
 
 
 def create_access_token(
@@ -51,12 +63,16 @@ def create_access_token(
         "username": username,
         "roles": roles,
         "permissions": permissions,
+        "iss": settings.JWT_ISSUER,
+        "aud": settings.JWT_AUDIENCE,
         "jti": str(uuid.uuid4()),
         "iat": int(now.timestamp()),
         "exp": int(expire.timestamp()),
     }
     if extra_claims:
-        payload.update(extra_claims)
+        # Reserved claims cannot be overridden by callers.
+        reserved = {"sub", "iss", "aud", "jti", "iat", "exp"}
+        payload.update({k: v for k, v in extra_claims.items() if k not in reserved})
 
     return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
 
@@ -69,6 +85,9 @@ def decode_access_token(token: str) -> dict[str, Any]:
             token,
             settings.JWT_SECRET,
             algorithms=[settings.JWT_ALGORITHM],
+            audience=settings.JWT_AUDIENCE,
+            issuer=settings.JWT_ISSUER,
+            options={"require": ["exp", "iat", "sub", "jti", "iss", "aud"]},
         )
         return payload
     except jwt.ExpiredSignatureError as e:

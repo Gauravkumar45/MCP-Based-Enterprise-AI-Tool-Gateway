@@ -10,8 +10,30 @@ from app.auth.models import UserContext
 from app.core.errors import AuthenticationError
 from app.core.logging import user_id_ctx
 from app.core.security import decode_access_token
+from app.services.auth_guard import get_revocation_list
 
 security = HTTPBearer(auto_error=False)
+
+
+async def authenticate_token(token: str) -> UserContext:
+    """Decode a bearer token, reject revoked tokens, and build the caller's UserContext.
+
+    Raises:
+        AuthenticationError: if the token is invalid, expired, or revoked.
+    """
+    payload = decode_access_token(token)
+    jti = str(payload["jti"])
+    if await get_revocation_list().is_revoked(jti):
+        raise AuthenticationError("JWT token has been revoked", details={"reason": "token_revoked"})
+    return UserContext(
+        user_id=str(payload.get("sub", "")),
+        username=str(payload.get("username", "")),
+        roles=list(payload.get("roles", [])),
+        permissions=list(payload.get("permissions", [])),
+        token=token,
+        token_id=jti,
+        token_expires_at=int(payload["exp"]),
+    )
 
 
 async def get_current_user_context(
@@ -37,21 +59,13 @@ async def get_current_user_context(
         )
 
     try:
-        payload = decode_access_token(token)
+        user_context = await authenticate_token(token)
     except AuthenticationError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=e.message,
             headers={"WWW-Authenticate": "Bearer"},
         ) from e
-
-    user_context = UserContext(
-        user_id=str(payload.get("sub", "")),
-        username=str(payload.get("username", "")),
-        roles=list(payload.get("roles", [])),
-        permissions=list(payload.get("permissions", [])),
-        token=token,
-    )
 
     # Propagate user_id to structured logging context
     user_id_ctx.set(user_context.user_id)

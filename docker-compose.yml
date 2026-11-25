@@ -51,6 +51,9 @@ services:
       JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-key-change-me-in-production-min-32-chars}
       JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
       JWT_ACCESS_TOKEN_EXPIRE_MINUTES: 60
+      # Local demo only: accepts username aliases and demo password variants.
+      # Startup fails if this is true while APP_ENV=production.
+      AUTH_DEMO_SHORTCUTS: ${AUTH_DEMO_SHORTCUTS:-true}
       RATE_LIMIT_REQUESTS: 10
       RATE_LIMIT_WINDOW_SECONDS: 60
       LLM_PROVIDER: ${LLM_PROVIDER:-openai}

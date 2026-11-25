@@ -28,6 +28,7 @@ A production-grade, security-hardened **Enterprise AI Tool Gateway** built on th
    - [Multi-Tier SQL Safety Engine](#multi-tier-sql-safety-engine)
    - [Redis Sliding-Window Rate Limiting](#redis-sliding-window-rate-limiting)
    - [Hard Execution Timeouts](#hard-execution-timeouts)
+   - [Authentication Hardening](#authentication-hardening)
 7. [Immutable Audit Logging & Observability](#7-immutable-audit-logging--observability)
 8. [LangGraph AI Agent Integration](#8-langgraph-ai-agent-integration)
 9. [Enterprise Tool Catalog](#9-enterprise-tool-catalog)
@@ -189,7 +190,7 @@ mcp-based-enterprise-ai-tool-gateway/
 ├── alembic/                        # Database migration scripts
 │   ├── env.py
 │   └── versions/                   # Versioned DDL migrations
-├── tests/                          # 77 Comprehensive Automated Tests
+├── tests/                          # 111 Comprehensive Automated Tests
 │   ├── conftest.py                 # In-memory async SQLite engine & seed fixtures
 │   ├── unit/                       # Unit tests (auth, RBAC, AST, rate limit, timeout)
 │   ├── integration/                # Integration tests (tools, MCP server, MCP client, agent)
@@ -258,6 +259,14 @@ Uses Redis sorted sets (`ZREMRANGEBYSCORE`, `ZCARD`, `ZADD`, `EXPIRE`) to track 
 
 ### Hard Execution Timeouts
 Prevents long-running queries or hung external services from exhausting workers. If a tool exceeds its configured threshold (`timeout_seconds`), it is cancelled via `asyncio.wait_for` and returns `TOOL_TIMEOUT`.
+
+### Authentication Hardening
+- **No password shortcuts by default**: `verify_password` is a strict bcrypt check. Demo conveniences (username aliases such as `bob`/`alice` and variants of the seed password) only work when `AUTH_DEMO_SHORTCUTS=true`, which is meant for local demos.
+- **Issuer and audience binding**: tokens carry `iss`/`aud` claims (`JWT_ISSUER`, `JWT_AUDIENCE`). Tokens missing `exp`, `iat`, `sub`, `jti`, `iss` or `aud`, or minted for another service, are rejected. Callers cannot override reserved claims via `extra_claims`.
+- **Token revocation**: `POST /auth/logout` adds the token's `jti` to a deny-list (Redis with TTL until the token's expiry, in-memory fallback). Revoked tokens are rejected on REST endpoints, the MCP SSE transport, and the in-process MCP client.
+- **Brute-force lockout**: after `LOGIN_MAX_FAILED_ATTEMPTS` failures (default 5) within `LOGIN_LOCKOUT_WINDOW_SECONDS` (default 300) a username gets HTTP 429 with `Retry-After`. Unknown usernames take the same bcrypt time, so timing does not reveal which accounts exist.
+- **Fail-fast production config**: with `APP_ENV=production` the gateway refuses to start if `JWT_SECRET` is the default or shorter than 32 chars, `AUTH_DEMO_SHORTCUTS` is on, `CORS_ALLOWED_ORIGINS` contains `*`, or `DEBUG` is on.
+- **HTTP hardening**: CORS is limited to `CORS_ALLOWED_ORIGINS` (credentials are never allowed with a wildcard), and every response carries `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` and `Cache-Control: no-store` (plus HSTS over HTTPS). `/auth/me` no longer echoes the bearer token.
 
 ---
 
@@ -386,7 +395,13 @@ curl -X POST http://localhost:8000/tools/query_database/execute \
   }'
 ```
 
-### 5. Inspect Audit Logs
+### 5. Log Out (Revoke Token)
+```bash
+curl -X POST http://localhost:8000/auth/logout \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+### 6. Inspect Audit Logs
 ```bash
 curl -X GET "http://localhost:8000/audit/logs?limit=10" \
   -H "Authorization: Bearer <ADMIN_ACCESS_TOKEN>"
@@ -444,7 +459,7 @@ The stack automatically applies migrations and seeds initial database records on
 
 ## 14. Testing & Quality Verification
 
-The repository includes a comprehensive 77-test suite spanning unit, integration, and security tests:
+The repository includes a comprehensive 111-test suite spanning unit, integration, and security tests:
 
 ```bash
 # Run complete test suite

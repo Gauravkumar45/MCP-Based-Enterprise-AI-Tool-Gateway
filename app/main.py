@@ -28,6 +28,13 @@ from app.database.session import get_engine, get_readonly_engine
 from app.mcp.server import get_mcp_server
 from app.services.rate_limit import get_redis_client
 
+SECURITY_HEADERS: dict[str, str] = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "no-referrer",
+    "Cache-Control": "no-store",
+}
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
@@ -62,6 +69,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 def create_app() -> FastAPI:
     """Application factory for the Enterprise MCP Tool Gateway."""
     settings = get_settings()
+    # Refuse to boot in production with demo shortcuts, default secrets, or wildcard CORS.
+    settings.validate_for_environment()
 
     app = FastAPI(
         title="Enterprise MCP Tool Gateway",
@@ -76,14 +85,30 @@ def create_app() -> FastAPI:
         redoc_url="/redoc",
     )
 
-    # CORS configuration
+    # CORS configuration: explicit origins only. Browsers reject credentialed requests to a
+    # wildcard origin, so credentials are only allowed when origins are listed explicitly.
+    allow_any_origin = "*" in settings.CORS_ALLOWED_ORIGINS
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_origins=settings.CORS_ALLOWED_ORIGINS,
+        allow_credentials=not allow_any_origin,
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type", "X-Request-ID", "X-Trace-ID"],
     )
+
+    # Baseline security headers on every response
+    if settings.SECURITY_HEADERS_ENABLED:
+
+        @app.middleware("http")
+        async def security_headers_middleware(request: Request, call_next: Any) -> Any:
+            response = await call_next(request)
+            for header, value in SECURITY_HEADERS.items():
+                response.headers.setdefault(header, value)
+            if request.url.scheme == "https":
+                response.headers.setdefault(
+                    "Strict-Transport-Security", "max-age=63072000; includeSubDomains"
+                )
+            return response
 
     # Tracing & Context Middleware
     @app.middleware("http")
